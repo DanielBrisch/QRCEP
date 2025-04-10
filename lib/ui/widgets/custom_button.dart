@@ -43,7 +43,6 @@ class CustomButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Ícone inicial (opcional)
                 if (iconInit != null) ...[iconInit!, const SizedBox(width: 8)],
                 Text(
                   label,
@@ -53,7 +52,6 @@ class CustomButton extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                // Ícone final (opcional)
                 if (iconFinish != null) ...[
                   const SizedBox(width: 8),
                   iconFinish!,
