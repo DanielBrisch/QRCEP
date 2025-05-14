@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:projeto_final/config/di/locator.dart';
+import 'package:projeto_final/controllers/find_cep_controller.dart';
 import 'package:projeto_final/ui/widgets/custom_button.dart';
 
 class FindCepPage extends StatefulWidget {
@@ -12,37 +11,21 @@ class FindCepPage extends StatefulWidget {
 }
 
 class _FindCepPageState extends State<FindCepPage> {
-  final TextEditingController _cepController = TextEditingController();
-  Map<String, dynamic>? _cepData;
+  late final FindCepController controller;
+
   bool _isLoading = false;
   String? _error;
 
-  Future<void> _fetchCep(String cep) async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-      _cepData = null;
-    });
+  @override
+  void initState() {
+    super.initState();
+    controller = locator<FindCepController>();
+  }
 
-    final url = Uri.parse('https://viacep.com.br/ws/$cep/json/');
-
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data.containsKey('erro') && data['erro'] == true) {
-          setState(() => _error = 'CEP não encontrado.');
-        } else {
-          setState(() => _cepData = data);
-        }
-      } else {
-        setState(() => _error = 'Erro na busca. Tente novamente.');
-      }
-    } catch (e) {
-      setState(() => _error = 'Erro de conexão.');
-    } finally {
-      setState(() => _isLoading = false);
-    }
+  @override
+  void dispose() {
+    controller.cepController.dispose();
+    super.dispose();
   }
 
   AppBar _buildAppBar() {
@@ -61,7 +44,7 @@ class _FindCepPageState extends State<FindCepPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
-          controller: _cepController,
+          controller: controller.cepController,
           decoration: const InputDecoration(
             labelText: 'Digite o CEP',
             border: OutlineInputBorder(),
@@ -70,8 +53,27 @@ class _FindCepPageState extends State<FindCepPage> {
         ),
         const SizedBox(height: 12),
         CustomButton(
-          onPressed: () {
-            _fetchCep(_cepController.text);
+          onPressed: () async {
+            setState(() {
+              _isLoading = true;
+              _error = null;
+              controller.address = null;
+            });
+            try {
+              await controller.fetchAddress(controller.cepController.text);
+              await controller.saveOnFindAddress();
+            } catch (e) {
+              print(e);
+              setState(() => _error = 'Erro de conexão. Tente novamente.');
+            }
+
+            setState(() => _isLoading = false);
+
+            final teste = await controller.getAllAddress();
+            for (var item in teste) {
+              print(item.cep);
+              print(item.bairro);
+            }
           },
           label: "Buscar",
           iconInit: Icon(Icons.search, color: Colors.white),
@@ -92,7 +94,7 @@ class _FindCepPageState extends State<FindCepPage> {
         ),
       );
     }
-    if (_cepData == null) {
+    if (controller.address == null) {
       return const SizedBox.shrink();
     }
     return _buildCepDetailCard();
@@ -108,26 +110,29 @@ class _FindCepPageState extends State<FindCepPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildDetailRow('CEP:', _cepData!['cep']),
-            _buildDetailRow('Logradouro:', _cepData!['logradouro']),
-            _buildDetailRow('Complemento:', _cepData!['complemento']),
-            _buildDetailRow('Bairro:', _cepData!['bairro']),
-            _buildDetailRow('Cidade:', _cepData!['localidade']),
-            _buildDetailRow('Estado:', _cepData!['uf']),
-            _buildDetailRow('DDD:', _cepData!['ddd']),
-            _buildDetailRow('IBGE:', _cepData!['ibge']),
+            _buildDetailRow('CEP:', controller.address?.cep),
+            _buildDetailRow('Logradouro:', controller.address?.logradouro),
+            _buildDetailRow('Complemento:', controller.address?.complemento),
+            _buildDetailRow('Bairro:', controller.address?.bairro),
+            _buildDetailRow('Cidade:', controller.address?.localidade),
+            _buildDetailRow('Estado:', controller.address?.uf),
+            _buildDetailRow('DDD:', controller.address?.ddd),
+            _buildDetailRow('IBGE:', controller.address?.ibge),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, dynamic value) {
+  Widget _buildDetailRow(String? label, dynamic value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            label ?? "",
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -139,12 +144,6 @@ class _FindCepPageState extends State<FindCepPage> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _cepController.dispose();
-    super.dispose();
   }
 
   @override
