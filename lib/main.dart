@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:projeto_final/config/di/locator.dart';
+import 'package:projeto_final/database/db.dart';
 import 'package:projeto_final/ui/pages/find_cep_page.dart';
 import 'package:projeto_final/ui/pages/home_page.dart';
 import 'package:projeto_final/ui/pages/scan_qr_code_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  setupLocator();
+  await locator<DatabaseHelper>().db;
+
   runApp(const MyApp());
 }
 
