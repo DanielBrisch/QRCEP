@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:projeto_final/config/di/locator.dart';
 import 'package:projeto_final/controllers/find_cep_controller.dart';
+import 'package:projeto_final/database/domain/models/address.dart';
 import 'package:projeto_final/ui/widgets/custom_button.dart';
 
 class FindCepPage extends StatefulWidget {
@@ -16,10 +17,13 @@ class _FindCepPageState extends State<FindCepPage> {
   bool _isLoading = false;
   String? _error;
 
+  List<Address> _history = [];
+
   @override
   void initState() {
     super.initState();
     controller = locator<FindCepController>();
+    _loadHistory();
   }
 
   @override
@@ -62,6 +66,7 @@ class _FindCepPageState extends State<FindCepPage> {
             try {
               await controller.fetchAddress(controller.cepController.text);
               await controller.saveOnFindAddress();
+              await _loadHistory();
             } catch (e) {
               print(e);
               setState(() => _error = 'Erro de conexão. Tente novamente.');
@@ -146,6 +151,45 @@ class _FindCepPageState extends State<FindCepPage> {
     );
   }
 
+  Future<void> _loadHistory() async {
+    final list = await controller.getAllAddress();
+    setState(() {
+      _history = list.reversed.toList();
+    });
+  }
+
+  Widget _buildHistorySection() {
+    if (_history.isEmpty) {
+      return const Text('Nenhum CEP buscado ainda.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Histórico de CEPs:',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _history.length,
+          itemBuilder: (context, index) {
+            final address = _history[index];
+            return Card(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              child: ListTile(
+                title: Text(address.cep),
+                subtitle: Text('${address.logradouro} - ${address.bairro}'),
+                trailing: Text(address.uf),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -161,6 +205,8 @@ class _FindCepPageState extends State<FindCepPage> {
               _buildInputSection(),
               const SizedBox(height: 24),
               _buildResultSection(),
+              const SizedBox(height: 24),
+              _buildHistorySection(),
             ],
           ),
         ),
